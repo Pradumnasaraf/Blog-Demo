@@ -1,0 +1,44 @@
+services:
+  server:
+    container_name: go-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: go-api
+    ports:
+      - 8080:8080
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=my_database
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - go-network
+
+  mysql:
+    container_name: go-mysql
+    image: mysql:9.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - go-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  dbdata:
+
+networks:
+  go-network:
+    driver: bridge
