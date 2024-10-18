@@ -25,7 +25,8 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/ping", func(c *gin.Context) {
-		err, remainingLimit := rateLimitCall(c.ClientIP())
+		flags := getFeatureFlags()
+		err, remainingLimit := rateLimitCall(c.ClientIP(), flags)
 		if err != nil {
 			c.JSON(
 				http.StatusTooManyRequests,
@@ -36,18 +37,24 @@ func main() {
 				gin.H{"Your left over API request is": remainingLimit})
 		}
 	})
+	r.GET("/beta", func(c *gin.Context) {
+		flags := getFeatureFlags()
+		isEnabled, _ := flags.IsFeatureEnabled("beta")
+		if isEnabled {
+			c.JSON(
+				http.StatusOK,
+				gin.H{"message": "This is beta endpoint"})
+		} else {
+			c.String(http.StatusNotFound, "404 page not found")
+		}
+	})
+
 	r.Run(":" + os.Getenv("PORT"))
 }
 
-func rateLimitCall(ClientIP string) (error, int) {
+func rateLimitCall(ClientIP string, flags flagsmith.Flags) (error, int) {
 
 	ctx := context.Background()
-
-	// Getting the rate limit from Flagsmith
-	client := flagsmith.NewClient(os.Getenv("FLAGSMITH_ENVIRONMENT_KEY"))
-
-	flags, _ := client.GetEnvironmentFlags(ctx)
-
 	rateLimitInterface, _ := flags.GetFeatureValue("rate_limit")
 	RATE_LIMIT := int(rateLimitInterface.(float64))
 	fmt.Println("Current Rate Limit is", RATE_LIMIT)
@@ -66,4 +73,11 @@ func rateLimitCall(ClientIP string) (error, int) {
 
 	fmt.Println("remaining request for", ClientIP, "is", res.Remaining)
 	return nil, res.Remaining
+}
+
+func getFeatureFlags() flagsmith.Flags {
+	ctx := context.Background()
+	client := flagsmith.NewClient(os.Getenv("FLAGSMITH_ENVIRONMENT_KEY"))
+	flags, _ := client.GetEnvironmentFlags(ctx)
+	return flags
 }
