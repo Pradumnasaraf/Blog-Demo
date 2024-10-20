@@ -25,8 +25,7 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/ping", func(c *gin.Context) {
-		flags := getFeatureFlags()
-		err, remainingLimit := rateLimitCall(c.ClientIP(), flags)
+		err, remainingLimit := rateLimitCall(c.ClientIP())
 		if err != nil {
 			c.JSON(
 				http.StatusTooManyRequests,
@@ -52,9 +51,11 @@ func main() {
 	r.Run(":" + os.Getenv("PORT"))
 }
 
-func rateLimitCall(ClientIP string, flags flagsmith.Flags) (error, int) {
+func rateLimitCall(ClientIP string) (error, int) {
 
 	ctx := context.Background()
+
+	flags := getFeatureFlags()
 	rateLimitInterface, _ := flags.GetFeatureValue("rate_limit")
 	RATE_LIMIT := int(rateLimitInterface.(float64))
 	fmt.Println("Current Rate Limit is", RATE_LIMIT)
